@@ -14,6 +14,10 @@ class FileRunStore(RunStore):
         self.runs_dir = Path(runs_dir)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
 
+    def clear(self) -> None:
+        for file_path in self.runs_dir.glob("run_*.json"):
+            file_path.unlink()
+
     def _run_file_path(self, run_id: str) -> Path:
         return self.runs_dir / f"run_{run_id}.json"
 
