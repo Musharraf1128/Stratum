@@ -1,0 +1,13 @@
+[project]
+name = "stratum"
+version = "0.1.0"
+description = "Graph-native execution control layer for multi-agent systems."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.134.0",
+    "networkx>=3.6.1",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "uvicorn>=0.41.0",
+]
