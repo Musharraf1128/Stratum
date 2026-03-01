@@ -9,10 +9,17 @@ from stratum.core.workflow import WorkflowGraph
 
 
 class ExecutionEngine:
-    def __init__(self, workflow: WorkflowGraph, max_workers: int = 4):
+    def __init__(
+        self,
+        workflow: WorkflowGraph,
+        max_workers: int = 4,
+        api_key: Optional[str] = None,
+        provider: str = "openai",
+    ):
         self.workflow = workflow
         self.max_workers = max_workers
-        self._step_results: dict[str, Any] = {}
+        self.api_key = api_key
+        self.provider = provider
 
     def execute(self, initial_input: Optional[dict[str, Any]] = None) -> ExecutionRun:
         run = ExecutionRun(
@@ -20,6 +27,11 @@ class ExecutionEngine:
             input_data=initial_input or {},
             start_time=datetime.now(),
         )
+
+        # Encrypt and store the API key on the run (if provided)
+        if self.api_key:
+            from stratum.core.crypto import encrypt_key
+            run.encrypted_api_key = encrypt_key(self.api_key)
 
         try:
             run.status = RunStatus.RUNNING
@@ -56,6 +68,10 @@ class ExecutionEngine:
             input_data=initial_input or {},
             start_time=datetime.now(),
         )
+
+        if self.api_key:
+            from stratum.core.crypto import encrypt_key
+            run.encrypted_api_key = encrypt_key(self.api_key)
 
         try:
             run.status = RunStatus.RUNNING
@@ -171,8 +187,24 @@ class ExecutionEngine:
             if not agent:
                 raise ValueError(f"Agent '{step.agent_name}' not found in registry")
 
-            result = agent.execute(step.input_data)
-            step.output_data = result
+            # Pass api_key to the agent callable so it can use real LLM calls
+            result = agent.execute(step.input_data, api_key=self.api_key, provider=self.provider)
+
+            # If the result is an LLMResponse, extract metrics
+            from stratum.core.llm_client import LLMResponse
+            if isinstance(result, LLMResponse):
+                step.output_data = result.output
+                step.token_usage = result.total_tokens
+                step.cost = result.cost
+            elif isinstance(result, dict) and "_llm_response" in result:
+                # Agent returned a dict with embedded LLM response metadata
+                llm_meta = result.pop("_llm_response")
+                step.output_data = result
+                step.token_usage = llm_meta.get("total_tokens", 0)
+                step.cost = llm_meta.get("cost", 0.0)
+            else:
+                step.output_data = result
+
             step.status = StepStatus.COMPLETED
 
         except Exception as e:

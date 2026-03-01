@@ -66,6 +66,8 @@ class FileRunStore(RunStore):
             "error": run.error,
             "start_time": run.start_time.isoformat() if run.start_time else None,
             "end_time": run.end_time.isoformat() if run.end_time else None,
+            # Store encrypted key (already encrypted, safe to persist)
+            "encrypted_api_key": run.encrypted_api_key,
         }
 
     def _serialize_step(self, step: ExecutionStep) -> dict[str, Any]:
@@ -79,6 +81,7 @@ class FileRunStore(RunStore):
             "start_time": step.start_time.isoformat() if step.start_time else None,
             "end_time": step.end_time.isoformat() if step.end_time else None,
             "token_usage": step.token_usage,
+            "cost": step.cost,
         }
 
     def _deserialize_run(self, data: dict[str, Any]) -> ExecutionRun:
@@ -97,6 +100,7 @@ class FileRunStore(RunStore):
             end_time=datetime.fromisoformat(data["end_time"])
             if data.get("end_time")
             else None,
+            encrypted_api_key=data.get("encrypted_api_key"),
         )
 
     def _deserialize_step(self, data: dict[str, Any]) -> ExecutionStep:
@@ -114,4 +118,5 @@ class FileRunStore(RunStore):
             if data.get("end_time")
             else None,
             token_usage=data.get("token_usage", 0),
+            cost=data.get("cost", 0.0),
         )
