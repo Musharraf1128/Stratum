@@ -1,635 +1,211 @@
-Stratum---multi-agent orchestration, audit,control/governance layer
+# Stratum
 
-## **1. One‑line summary**
+**A graph-native execution control layer for multi-agent AI systems.**
 
-A control‑plane for AI agents that lets companies **create, orchestrate, and govern many agents in one place** – with full visibility into what each agent is doing, accessing, and costing.
-
----
-
-## **2. Context: What’s changing**
-
-- The world is shifting from “one smart chatbot” to **teams of specialized AI agents** that research, code, design, and operate business workflows together.
-- Enterprises are starting to deploy **dozens of agents across tools and departments**, not just one assistant in one app.
-- As this happens, orchestration and governance are becoming as important as the agents themselves – someone has to coordinate, monitor, and control them.
+Stratum gives developers building multi-agent workflows a structured way to define, execute, observe, and replay agent collaboration -- all from a single control plane.
 
 ---
 
-## **3. The problem**
+## The Problem
 
-## **3.1 For teams building agents**
+As teams move from single-agent prototypes to multi-agent systems, they hit the same walls:
 
-When companies spin up multiple agents across tools, teams, and codebases, they quickly run into chaos:
+- **No structured orchestration** -- agents are wired together with ad-hoc glue code
+- **No execution visibility** -- when something breaks in a 5-agent pipeline, good luck finding where
+- **No cost tracking** -- LLM spend grows, but there's no per-agent or per-run breakdown
+- **No replay or debugging** -- you can't re-run a workflow with the same input and compare what changed
 
-- **No single view of “all my agents”**
-    - It’s hard to answer:
-        - Which agents exist?
-        - Who owns them?
-        - What data and tools can they access?
-- **Poor visibility into behavior**
-    - You can’t easily see what an agent actually did for a given task.
-    - There’s no clear trace of:
-        - Which steps it took
-        - Which tools it called
-        - What data it touched
-- **No clean way to track usage and cost**
-    - Each team hacks its own logging or spreadsheets.
-    - Leadership can’t see where agent/LLM spend is going, per agent or per use case.
-- **Weak control and governance**
-    - Security and compliance people worry about unauthorized data access, unapproved actions, and opaque decision paths.
-    - It’s hard to provide auditors or stakeholders with a clear, end‑to‑end story of “what happened and why” for any given workflow.
-
-## **3.2 User pain in one sentence**
-
-> **“As we add more agents, we lose track of what they’re doing, what they’re costing us, and whether they’re operating safely.”**
-> 
+Stratum solves this by treating multi-agent workflows as **directed graphs** with full execution tracing.
 
 ---
 
-## **4. Why this matters (the “Why”)**
+## What Stratum Does (v0)
 
-## **4.1 For businesses**
-
-- **Trust and safety**
-    - Businesses won’t put critical workflows in the hands of agents unless they can **see, explain, and control** what those agents do.
-- **Cost and efficiency**
-    - Multi‑agent systems can significantly improve productivity and reduce operational costs **if** they’re managed well.
-    - Without visibility and budgets, costs can spiral and projects get killed.
-- **Scalability**
-    - The shift to agentic AI is accelerating; enterprises are moving from experiments to **production‑grade multi‑agent ecosystems**.
-    - To scale from 2–3 agents to 50–100, companies need a **shared control layer**, not one‑off hacks per team.
-
-## **4.2 For us (product opportunity)**
-
-- We sit **above individual agents and frameworks** and become the **standard way to run agents in a structured, reliable way**.
-- If we solve this well, every new agent a company creates naturally plugs into our layer for visibility, cost tracking, and governance.
+| Capability | Description |
+|---|---|
+| **Graph-based workflows** | Define agent pipelines as DAGs with explicit dependencies and parallel branches |
+| **Execution engine** | Run workflows sequentially or in parallel with automatic dependency resolution |
+| **Full execution trace** | Every agent step logs input, output, duration, token usage, cost, and errors |
+| **Replay** | Re-run any previous execution with the same input, get a new trace, compare results |
+| **Multi-provider LLM support** | Built-in support for OpenAI, Claude, and Gemini with per-model cost tracking |
+| **REST API** | FastAPI backend exposing all operations over HTTP |
+| **Visual dashboard** | React frontend with workflow graph view, run history, step inspection, and diff view |
 
 ---
 
-## **5. Our core solution (non‑technical view)**
-
-We are building a **middleware “manager” for agents** – an orchestration + management layer that sits between:
-
-> **Users / client apps ↔ Our Manager ↔ Many specialized agents + tools**
-> 
-
-At a high level, our platform will:
-
-- **Orchestrate work**
-    - Take a user request or ticket.
-    - Break it down into smaller tasks.
-    - Decide which agent should handle which part.
-    - Coordinate how agents collaborate and share information.
-- **Observe everything**
-    - Track, for each agent:
-        - What it did
-        - In what order
-        - Which tools and data it accessed
-    - Provide an end‑to‑end view of every task, from first request to final outcome.
-- **Control and govern agents**
-    - Give teams levers to **allow, limit, or stop** what agents can do.
-    - Make it easy to answer:
-        - “Who/which agent did this?”
-        - “What did they see?”
-        - “Was this within policy?”
-- **Track usage and cost**
-    - Keep a clear picture of **how much each agent is being used** and **what it’s costing** per team, workflow, or customer.
-
----
-
-## **6. Simple end‑to‑end flow (story version)**
-
-This is the “one sentence” flow you wrote, cleaned up and structured:
-
-1. **User / client sends a task**
-    - A user or internal system creates an agent or raises a ticket like:
-        
-        “Handle this customer support issue” or “Research this topic.”
-        
-2. **Our manager receives the task**
-    - Our layer reads the request and, using an LLM, breaks it into logical sub‑tasks.
-3. **We pick and organize agents**
-    - Based on the roles needed (e.g., Classifier, Researcher, Writer), our manager:
-        - Creates new agents if needed, or
-        - Reuses existing agents already registered in the system.
-4. **Agents do the work together**
-    - Agents collaborate: passing information, calling tools, refining answers.
-    - While they do this, our manager is observing and recording each step.
-5. **We track everything they do**
-    - For each agent and each run, we keep a record of:
-        - What it tried to do
-        - What data it touched
-        - What tools it used
-        - How long it took and what it cost
-6. **Final result is returned**
-    - The user gets the final answer or completed action.
-    - Behind the scenes, we’ve logged a full “story” of how it happened.
-
----
-
-## **7. Who this is for (initial focus)**
-
-- **Teams already building or experimenting with multiple agents**, especially in:
-    - Customer support
-    - Operations / back‑office automation
-    - Internal research / knowledge workflows
-
-They feel the pain of:
-
-- Too many agents scattered across repos and tools.
-- No central visibility or governance.
-- Increasing LLM bills with no clear breakdown.
-
----
-
-## **8. What success looks like**
-
-If we succeed, for a customer:
-
-- They can open our product and see **every agent they have**, where it runs, and who owns it.
-- Any time something goes wrong (“Why did this agent send a wrong email?”), they can **trace the full decision path** in a few clicks.
-- Finance and leadership can see **agent usage and costs** broken down clearly by agent, team, and use case.
-- Security and compliance teams trust agents **because governance is built‑in** – not bolted on later.
-
-Core architecture---->
-## **1. One‑line summary**
-
-A control‑plane for AI agents that lets companies **create, orchestrate, and govern many agents in one place** – with full visibility into what each agent is doing, accessing, and costing.
-
----
-
-## **2. Context: What’s changing**
-
-- The world is shifting from “one smart chatbot” to **teams of specialized AI agents** that research, code, design, and operate business workflows together.
-- Enterprises are starting to deploy **dozens of agents across tools and departments**, not just one assistant in one app.
-- As this happens, orchestration and governance are becoming as important as the agents themselves – someone has to coordinate, monitor, and control them.
-
----
-
-## **3. The problem**
-
-## **3.1 For teams building agents**
-
-When companies spin up multiple agents across tools, teams, and codebases, they quickly run into chaos:
-
-- **No single view of “all my agents”**
-    - It’s hard to answer:
-        - Which agents exist?
-        - Who owns them?
-        - What data and tools can they access?
-- **Poor visibility into behavior**
-    - You can’t easily see what an agent actually did for a given task.
-    - There’s no clear trace of:
-        - Which steps it took
-        - Which tools it called
-        - What data it touched
-- **No clean way to track usage and cost**
-    - Each team hacks its own logging or spreadsheets.
-    - Leadership can’t see where agent/LLM spend is going, per agent or per use case.
-- **Weak control and governance**
-    - Security and compliance people worry about unauthorized data access, unapproved actions, and opaque decision paths.
-    - It’s hard to provide auditors or stakeholders with a clear, end‑to‑end story of “what happened and why” for any given workflow.
-
-## **3.2 User pain in one sentence**
-
-> **“As we add more agents, we lose track of what they’re doing, what they’re costing us, and whether they’re operating safely.”**
-> 
-
----
-
-## **4. Why this matters (the “Why”)**
-
-## **4.1 For businesses**
-
-- **Trust and safety**
-    - Businesses won’t put critical workflows in the hands of agents unless they can **see, explain, and control** what those agents do.
-- **Cost and efficiency**
-    - Multi‑agent systems can significantly improve productivity and reduce operational costs **if** they’re managed well.
-    - Without visibility and budgets, costs can spiral and projects get killed.
-- **Scalability**
-    - The shift to agentic AI is accelerating; enterprises are moving from experiments to **production‑grade multi‑agent ecosystems**.
-    - To scale from 2–3 agents to 50–100, companies need a **shared control layer**, not one‑off hacks per team.
-
-## **4.2 For us (product opportunity)**
-
-- We sit **above individual agents and frameworks** and become the **standard way to run agents in a structured, reliable way**.
-- If we solve this well, every new agent a company creates naturally plugs into our layer for visibility, cost tracking, and governance.
-
----
-
-## **5. Our core solution (non‑technical view)**
-
-We are building a **middleware “manager” for agents** – an orchestration + management layer that sits between:
-
-> **Users / client apps ↔ Our Manager ↔ Many specialized agents + tools**
-> 
-
-At a high level, our platform will:
-
-- **Orchestrate work**
-    - Take a user request or ticket.
-    - Break it down into smaller tasks.
-    - Decide which agent should handle which part.
-    - Coordinate how agents collaborate and share information.
-- **Observe everything**
-    - Track, for each agent:
-        - What it did
-        - In what order
-        - Which tools and data it accessed
-    - Provide an end‑to‑end view of every task, from first request to final outcome.
-- **Control and govern agents**
-    - Give teams levers to **allow, limit, or stop** what agents can do.
-    - Make it easy to answer:
-        - “Who/which agent did this?”
-        - “What did they see?”
-        - “Was this within policy?”
-- **Track usage and cost**
-    - Keep a clear picture of **how much each agent is being used** and **what it’s costing** per team, workflow, or customer.
-
----
-
-## **6. Simple end‑to‑end flow (story version)**
-
-This is the “one sentence” flow you wrote, cleaned up and structured:
-
-1. **User / client sends a task**
-    - A user or internal system creates an agent or raises a ticket like:
-        
-        “Handle this customer support issue” or “Research this topic.”
-        
-2. **Our manager receives the task**
-    - Our layer reads the request and, using an LLM, breaks it into logical sub‑tasks.
-3. **We pick and organize agents**
-    - Based on the roles needed (e.g., Classifier, Researcher, Writer), our manager:
-        - Creates new agents if needed, or
-        - Reuses existing agents already registered in the system.
-4. **Agents do the work together**
-    - Agents collaborate: passing information, calling tools, refining answers.
-    - While they do this, our manager is observing and recording each step.
-5. **We track everything they do**
-    - For each agent and each run, we keep a record of:
-        - What it tried to do
-        - What data it touched
-        - What tools it used
-        - How long it took and what it cost
-6. **Final result is returned**
-    - The user gets the final answer or completed action.
-    - Behind the scenes, we’ve logged a full “story” of how it happened.
-
----
-
-## **7. Who this is for (initial focus)**
-
-- **Teams already building or experimenting with multiple agents**, especially in:
-    - Customer support
-    - Operations / back‑office automation
-    - Internal research / knowledge workflows
-
-They feel the pain of:
-
-- Too many agents scattered across repos and tools.
-- No central visibility or governance.
-- Increasing LLM bills with no clear breakdown.
-
----
-
-## **8. What success looks like**
-
-If we succeed, for a customer:
-
-- They can open our product and see **every agent they have**, where it runs, and who owns it.
-- Any time something goes wrong (“Why did this agent send a wrong email?”), they can **trace the full decision path** in a few clicks.
-- Finance and leadership can see **agent usage and costs** broken down clearly by agent, team, and use case.
-- Security and compliance teams trust agents **because governance is built‑in** – not bolted on later.
-
-Prd------>
-# 1️⃣ Problem Statement
-
-Developers building multi-agent systems lack:
-
-- Structured orchestration
-- Execution visibility
-- Debugging capability
-- Replay control
-
-When multiple agents collaborate, failures compound and systems become opaque.
-
-There is no lightweight, graph-native execution control layer for local development.
-
----
-
-# 2️⃣ v0 Objective
-
-Build a local-first execution engine that:
-
-- Defines multi-agent workflows as graphs
-- Executes them deterministically
-- Supports parallel nodes
-- Captures full execution trace
-- Visualizes runs
-- Allows replay
-
-This proves the control-plane concept.
-
----
-
-# 3️⃣ Core Concepts (Data Model)
-
-## 3.1 Agent
-
-Represents a callable processing unit.
-
-Attributes:
-
-- id
-- name
-- role
-- execution_function
-- input_schema (optional)
-- output_schema (optional)
-
----
-
-## 3.2 WorkflowGraph
-
-Represents structure of collaboration.
-
-Attributes:
-
-- workflow_id
-- nodes (agents)
-- edges (directed)
-- execution_mode (sequential / parallel branches)
-
-Graph is static and explicit.
-
----
-
-## 3.3 ExecutionRun (Core Primitive)
-
-Represents a single execution of a workflow.
-
-Attributes:
-
-- run_id
-- workflow_id
-- start_time
-- end_time
-- status
-- steps[]
-
----
-
-## 3.4 ExecutionStep
-
-Represents execution of a single agent within a run.
-
-Attributes:
-
-- step_id
-- agent_id
-- input
-- output
-- start_time
-- end_time
-- duration
-- token_usage
-- status
-- parent_steps (for traceability)
-
----
-
-# 4️⃣ Backend Components
-
-## 4.1 Agent SDK Layer
-
-Responsibilities:
-
-- Decorator for agent registration
-- Workflow graph definition
-- Run execution trigger
-- Trace logging
-
-Example usage:
+## Architecture
 
 ```
-@agent(role="Researcher")
-defresearch(input):
-returnllm_call(...)
-```
-
-Workflow:
-
-```
-workflow=WorkflowGraph()
-workflow.add_agent(research)
-workflow.add_agent(writer)
-workflow.connect(research,writer)
+                    ┌─────────────────────────────────────┐
+                    │          React Dashboard             │
+                    │  Graph View · Run List · Step Detail  │
+                    │           · Diff View                │
+                    └──────────────┬──────────────────────┘
+                                   │ HTTP
+                    ┌──────────────▼──────────────────────┐
+                    │          FastAPI Server               │
+                    │   /workflow · /run · /runs · /replay  │
+                    └──────────────┬──────────────────────┘
+                                   │
+          ┌────────────────────────┼────────────────────────┐
+          │                        │                        │
+  ┌───────▼────────┐   ┌──────────▼──────────┐   ┌────────▼────────┐
+  │  Agent Registry │   │  Execution Engine   │   │    Run Store    │
+  │  @agent decorator│   │  Sequential/Parallel│   │   JSON files    │
+  └────────────────┘   │  Dependency resolver │   └─────────────────┘
+                        └──────────┬──────────┘
+                                   │
+                    ┌──────────────▼──────────────────────┐
+                    │         WorkflowGraph (DAG)          │
+                    │       NetworkX · Topological Sort     │
+                    │       Cycle detection · Validation    │
+                    └─────────────────────────────────────┘
 ```
 
 ---
 
-## 4.2 Orchestration Engine
+## Project Structure
 
-Responsibilities:
-
-- Parse graph
-- Detect parallel branches
-- Execute agents accordingly
-- Maintain state per run
-- Handle dependency resolution
-- Collect outputs
-
-Parallel logic:
-
-- If multiple nodes share same parent and no dependency, run concurrently.
-
-Implementation:
-
-ThreadPoolExecutor or asyncio.
-
----
-
-## 4.3 Execution Tracker
-
-Every agent call logs:
-
-- Input
-- Output
-- Duration
-- Status
-- Tokens (estimated)
-- Errors
-
-Store locally in:
-
-SQLite OR JSON file.
-
-Given time constraint:
-
-JSON file per run is acceptable.
+```
+stratum/
+├── stratum/                  # Python SDK + backend
+│   ├── core/
+│   │   ├── agent.py          # @agent decorator, Agent class, registry
+│   │   ├── workflow.py       # WorkflowGraph (NetworkX DAG)
+│   │   ├── execution_engine.py  # Sequential + parallel execution
+│   │   ├── replay_engine.py  # Re-run workflows from saved state
+│   │   ├── models.py         # ExecutionRun, ExecutionStep, status enums
+│   │   ├── llm_client.py     # Multi-provider LLM calls + cost tracking
+│   │   └── crypto.py         # API key encryption at rest
+│   ├── api/
+│   │   ├── server.py         # FastAPI app factory
+│   │   └── routes.py         # REST endpoints
+│   └── storage/
+│       ├── run_store.py      # Abstract storage interface
+│       └── file_run_store.py # JSON file implementation
+├── frontend/stratum/         # React dashboard (Vite)
+│   └── src/
+│       ├── Dashboard.jsx     # Root component
+│       ├── components/       # WorkflowGraph, RunSidebar, StepDetailPanel, DiffView, etc.
+│       └── api/stratum.js    # API client
+├── tests/                    # pytest test suite
+├── demo_workflow.py          # 5-agent demo with fork/join pattern
+└── pyproject.toml            # Project dependencies
+```
 
 ---
 
-## 4.4 Replay Engine
+## Quickstart
 
-Replay =
+### Prerequisites
 
-- Same workflow
-- Same initial input
-- New run_id
-- Compare outputs
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- Node.js 18+ (for the frontend)
 
-Diff engine:
+### Backend
 
-Basic text diff.
+```bash
+# Clone the repo
+git clone https://github.com/Musharraf1128/stratum.git
+cd stratum
 
-No need for semantic diff.
+# Install dependencies
+uv sync
 
----
+# Run the demo workflow (no API key needed -- uses mock mode)
+uv run python demo_workflow.py
 
-# 5️⃣ Frontend Requirements
+# Start the API server
+uv run uvicorn stratum.api.server:app --reload --port 8000
+```
 
-React app.
+### Frontend
 
-Very minimal.
+```bash
+cd frontend/stratum
+npm install
+npm run dev
+```
 
----
+Open `http://localhost:5173` to access the dashboard.
 
-## 5.1 Workflow Graph View
+### With real LLM calls
 
-Static graph visualization.
+Set your API key through the dashboard's settings modal, or pass it in the API request:
 
-Use:
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input_data": {"query": "Analyze market trends in AI infrastructure"},
+    "api_key": "your-api-key",
+    "provider": "openai"
+  }'
+```
 
-- React Flow or similar lightweight graph library.
-
-Features:
-
-- Nodes
-- Directed edges
-- Click node → open panel
-
-No animations needed.
-
----
-
-## 5.2 Execution Run Panel
-
-Shows:
-
-- List of runs
-- Status
-- Duration
-- Replay button
-
----
-
-## 5.3 Step Detail Panel
-
-On node click:
-
-Show:
-
-- Prompt/input
-- Output
-- Duration
-- Tokens
-- Status
-- Error (if any)
+Supported providers: `openai`, `claude`, `gemini`.
 
 ---
 
-## 5.4 Diff View (Optional but Strong)
+## API Reference
 
-Select two runs → side-by-side output comparison.
-
-Even basic text area split view is enough.
-
----
-
-# 6️⃣ Demo Workflow Design
-
-Max 5 agents.
-
-Example:
-
-1. Topic Analyzer
-2. Research Agent
-3. Storyline Architect
-4. Slide Structurer
-5. Quality Validator
-
-Parallel:
-
-Research + Audience agent run together.
-
-Then merge into Storyline.
-
-Graph visually shows fork and join.
-
-That’s impressive.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/workflow` | Returns workflow graph (agents + edges) |
+| `GET` | `/agents` | Lists all registered agents |
+| `POST` | `/run` | Executes the workflow with given input |
+| `GET` | `/runs` | Lists all saved runs with summary stats |
+| `GET` | `/runs/{run_id}` | Returns full run details including all steps |
+| `POST` | `/replay/{run_id}` | Re-executes a run with the original input |
 
 ---
 
-# 7️⃣ Demo Script (3 Minutes)
+## Demo Workflow
 
-1. Define workflow
-2. Show graph
-3. Run workflow
-4. Watch execution logs populate
-5. Click nodes → inspect outputs
-6. Replay run
-7. Compare differences
+The included demo (`demo_workflow.py`) defines a 5-agent pipeline with a fork/join pattern:
 
-End with:
+```
+fetch_data ──┬──> process_a ──┬──> aggregate ──> format_output
+             └──> process_b ──┘
+```
 
-> “This is the control plane layer missing in multi-agent systems.”
-> 
+`process_a` and `process_b` run in parallel, demonstrating Stratum's parallel execution support.
 
 ---
 
-# 8️⃣ Time Allocation Plan (15 Hours)
+## Running Tests
 
-Backend (8 hours):
-
-- Agent decorator + registry (1.5h)
-- Workflow graph structure (1h)
-- Execution engine (3h)
-- Parallel support (1.5h)
-- Logging + storage (1h)
-
-Frontend (5–6 hours):
-
-- Graph visualization (2h)
-- Run list + API connection (1h)
-- Node detail panel (1h)
-- Replay button (1h)
-
-Final polish + demo prep (1–2 hours)
+```bash
+uv run pytest tests/ -v
+```
 
 ---
 
-# 9️⃣ What This v0 Proves
+## The Bigger Picture
 
-It proves:
+Stratum v0 is the foundation for a broader vision: **a control plane for AI agents in production**.
 
-- Multi-agent systems need structured orchestration
-- Execution trace matters
-- Replay matters
-- Graph-native control is superior to ad-hoc chains
+As enterprises move from 2-3 experimental agents to 50-100 agents across departments, the need for centralized orchestration, governance, and cost management becomes critical. The same problems developers face locally -- visibility, tracing, cost tracking -- become organizational problems at scale.
 
-That is fundable direction.
+The roadmap beyond v0 includes:
+
+- **Agent governance** -- policy enforcement, access controls, approval workflows
+- **Cost budgets and alerts** -- per-agent, per-team, per-workflow spending limits
+- **Audit trails** -- compliance-ready logs of what every agent did, why, and what data it touched
+- **Framework-agnostic SDK** -- bring your own agents (LangChain, CrewAI, AutoGen, custom), Stratum handles the control layer
+- **Multi-tenant deployment** -- teams share a single Stratum instance with isolated workspaces
+
+The core thesis: **orchestration and governance will matter more than individual agent capability.** Stratum is the layer that makes multi-agent systems trustworthy, debuggable, and cost-effective.
 
 ---
 
-# 🚨 Final Strategic Advice
+## License
 
-Do NOT overcomplicate.
+MIT
 
-Do NOT polish visuals endlessly.
+---
 
-Do NOT chase perfection.
+## Contributing
 
-Build the control surface.
-
-Your edge is clarity.
+This project is in early development. If you're interested in contributing or have feedback, open an issue or reach out.

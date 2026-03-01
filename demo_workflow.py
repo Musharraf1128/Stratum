@@ -19,16 +19,16 @@ from stratum.core.workflow import WorkflowGraph
 from stratum.storage.file_run_store import FileRunStore
 
 
-def _try_llm(api_key, prompt, system_prompt=None, provider="openai"):
+def _try_llm(api_key, prompt, system_prompt=None, provider="openai", model=None):
     """Call LLM if api_key is available, otherwise return None."""
     if not api_key:
         return None
     from stratum.core.llm_client import call_llm
-    return call_llm(api_key, prompt, provider=provider, system_prompt=system_prompt)
+    return call_llm(api_key, prompt, provider=provider, model=model, system_prompt=system_prompt)
 
 
 @agent(name="fetch_data", role="data_fetcher")
-def fetch_data(data: dict, api_key: str = None, provider: str = "openai") -> dict:
+def fetch_data(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Fetch and analyze input data."""
     query = data.get("query", "default query")
 
@@ -37,6 +37,7 @@ def fetch_data(data: dict, api_key: str = None, provider: str = "openai") -> dic
         f"You are a data fetching agent. Analyze this query and return a structured list of 3 key data points to research: {query}",
         system_prompt="You are a precise data extraction agent. Return concise, structured results.",
         provider=provider,
+        model=model,
     )
 
     if llm_resp:
@@ -59,7 +60,7 @@ def fetch_data(data: dict, api_key: str = None, provider: str = "openai") -> dic
 
 
 @agent(name="process_a", role="processor")
-def process_a(data: dict, api_key: str = None, provider: str = "openai") -> dict:
+def process_a(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Process data through analytical path A."""
     results = data.get("fetch_data", {}).get("results", [])
 
@@ -68,6 +69,7 @@ def process_a(data: dict, api_key: str = None, provider: str = "openai") -> dict
         f"You are an analytical processor. Take these data points and provide a concise analytical summary with key insights:\n\n{results}",
         system_prompt="You are a data analyst. Provide structured analytical insights.",
         provider=provider,
+        model=model,
     )
 
     if llm_resp:
@@ -89,7 +91,7 @@ def process_a(data: dict, api_key: str = None, provider: str = "openai") -> dict
 
 
 @agent(name="process_b", role="processor")
-def process_b(data: dict, api_key: str = None, provider: str = "openai") -> dict:
+def process_b(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Process data through synthesis path B."""
     results = data.get("fetch_data", {}).get("results", [])
 
@@ -98,6 +100,7 @@ def process_b(data: dict, api_key: str = None, provider: str = "openai") -> dict
         f"You are a synthesis processor. Take these data points and create a synthesized narrative combining all findings:\n\n{results}",
         system_prompt="You are a content synthesizer. Create cohesive narratives from data.",
         provider=provider,
+        model=model,
     )
 
     if llm_resp:
@@ -119,7 +122,7 @@ def process_b(data: dict, api_key: str = None, provider: str = "openai") -> dict
 
 
 @agent(name="aggregate", role="aggregator")
-def aggregate(data: dict, api_key: str = None, provider: str = "openai") -> dict:
+def aggregate(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Aggregate results from both processing paths."""
     path_a = data.get("process_a", {}).get("processed", [])
     path_b = data.get("process_b", {}).get("processed", [])
@@ -129,6 +132,7 @@ def aggregate(data: dict, api_key: str = None, provider: str = "openai") -> dict
         f"You are an aggregation agent. Combine these two analyses into a unified summary:\n\nAnalysis A:\n{path_a}\n\nSynthesis B:\n{path_b}",
         system_prompt="You are a results aggregator. Produce a clear, unified summary.",
         provider=provider,
+        model=model,
     )
 
     if llm_resp:
@@ -155,7 +159,7 @@ def aggregate(data: dict, api_key: str = None, provider: str = "openai") -> dict
 
 
 @agent(name="format_output", role="formatter")
-def format_output(data: dict, api_key: str = None, provider: str = "openai") -> str:
+def format_output(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> str:
     """Format final output into a polished result."""
     combined = data.get("aggregate", {}).get("combined", [])
     total = data.get("aggregate", {}).get("total", 0)
@@ -165,6 +169,7 @@ def format_output(data: dict, api_key: str = None, provider: str = "openai") -> 
         f"You are a formatting agent. Take this aggregated content and format it as a clean, professional executive summary:\n\n{combined}",
         system_prompt="You are a professional document formatter. Create polished executive summaries.",
         provider=provider,
+        model=model,
     )
 
     if llm_resp:

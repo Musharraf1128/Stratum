@@ -14,11 +14,12 @@ class ReplayEngine:
         run_store: RunStore,
         api_key: Optional[str] = None,
         provider: str = "openai",
+        model: Optional[str] = None,
     ):
         self.workflow = workflow
         self.run_store = run_store
         self.api_key = api_key
-        self.execution_engine = ExecutionEngine(workflow, api_key=api_key, provider=provider)
+        self.execution_engine = ExecutionEngine(workflow, api_key=api_key, provider=provider, model=model)
 
     def replay(self, original_run_id: str, api_key: Optional[str] = None) -> str:
         original_run = self.run_store.get_run(original_run_id)
