@@ -2,9 +2,10 @@
 // Responsibility: Resizable right-side detail drawer. Collapsed by default
 // to a narrow rail; expands on click. Drag handle on left edge for resizing.
 // Shows input, output, tokens, cost, duration, status and error for a step.
+// NEW: Retry attempts, fallback info, skip reason, governance status badges.
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { statusColor, statusDot } from "../utils/statusHelpers";
+import { statusColor, statusDot, statusBadge, statusLabel } from "../utils/statusHelpers";
 
 function MetaCard({ label, children }) {
   return (
@@ -34,6 +35,71 @@ function CodeBlock({ label, content, isError = false }) {
         style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
       >
         {content || "—"}
+      </div>
+    </div>
+  );
+}
+
+// ─── Retry attempts section ──────────────────────────────────────────────────
+function RetrySection({ attempts, retryCount }) {
+  if (!retryCount || retryCount === 0) return null;
+
+  return (
+    <div className="border border-zinc-800 rounded p-3 overflow-hidden">
+      <div className="text-xs font-mono text-zinc-600 uppercase tracking-wider mb-2">
+        {attempts.length} attempt{attempts.length !== 1 ? "s" : ""} ({retryCount} retr{retryCount !== 1 ? "ies" : "y"})
+      </div>
+      <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-hidden">
+        {attempts.map((a) => (
+          <div key={a.number} className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-zinc-600 flex-shrink-0">[{a.number}]</span>
+              {a.status === "completed" ? (
+                <span className="text-emerald-400 flex-shrink-0">✓ ok</span>
+              ) : (
+                <span className="text-red-400 flex-shrink-0">✗ fail</span>
+              )}
+              <span className="text-zinc-700 ml-auto flex-shrink-0">{a.duration}</span>
+            </div>
+            {a.status !== "completed" && a.error && (
+              <div
+                className="text-xs font-mono text-red-400/70 mt-1 pl-6 break-all overflow-hidden"
+                style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}
+              >
+                {a.error}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Fallback section ────────────────────────────────────────────────────────
+function FallbackSection({ fallbackUsed, fallbackAgentId }) {
+  if (!fallbackUsed) return null;
+
+  return (
+    <div className="border border-amber-900/50 bg-amber-950/20 rounded p-3">
+      <div className="text-xs font-mono text-amber-400 mb-1">
+        ⚠ Fallback used: {fallbackAgentId}
+      </div>
+      <div className="text-xs text-zinc-500">
+        Primary agent exhausted retries. Fallback succeeded.
+      </div>
+    </div>
+  );
+}
+
+// ─── Skip reason section ─────────────────────────────────────────────────────
+function SkipSection({ skipReason }) {
+  if (!skipReason) return null;
+
+  return (
+    <div className="border border-orange-900/50 bg-orange-950/20 rounded p-3">
+      <div className="text-xs font-mono text-orange-400">
+        ⊘ Skipped: {skipReason}
       </div>
     </div>
   );
@@ -143,6 +209,13 @@ function ExpandedContent({ step, onCollapse }) {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hidden p-4 space-y-4">
+        {/* Status badge */}
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-mono border px-2 py-0.5 rounded ${statusBadge(step.status)}`}>
+            {statusLabel(step.status)}
+          </span>
+        </div>
+
         {/* Meta row */}
         <div className="grid grid-cols-2 gap-2">
           <MetaCard label="Status">
@@ -160,6 +233,11 @@ function ExpandedContent({ step, onCollapse }) {
             </span>
           </MetaCard>
         </div>
+
+        {/* Governance sections */}
+        <SkipSection skipReason={step.skipReason} />
+        <RetrySection attempts={step.attempts} retryCount={step.retryCount} />
+        <FallbackSection fallbackUsed={step.fallbackUsed} fallbackAgentId={step.fallbackAgentId} />
 
         <CodeBlock label="Input"  content={step.input}  />
         <CodeBlock label="Output" content={step.output} />

@@ -18,3 +18,6 @@ runs/
 # Security
 .stratum_key
 .env
+
+# Database
+stratum.db

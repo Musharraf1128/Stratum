@@ -11,26 +11,18 @@ import CenterPane       from "./components/CenterPane";
 import StepDetailPanel  from "./components/StepDetailPanel";
 import ReplayToast      from "./components/ReplayToast";
 import ApiSettingsModal from "./components/ApiSettingsModal";
+import AgentsView       from "./components/AgentsView";
 
-import { fetchWorkflow, fetchRuns, fetchRun, createRun, replayRun } from "./api/stratum";
+import { fetchWorkflow, fetchRuns, fetchRun, createRun, replayRun, fetchAgents } from "./api/stratum";
 import { adaptWorkflow, adaptRuns, adaptRunDetail } from "./data/adapters";
 
-// ─── localStorage helpers ──────────────────────────────────────────────────────
-const STORAGE_KEY = "stratum_api_key";
+// ─── Storage helpers ───────────────────────────────────────────────────────────
+// API key is deliberately NOT persisted to localStorage (security).
+// On page reload the user re-enters it. Provider preference is non-sensitive.
 const PROVIDER_KEY = "stratum_provider";
 
-function loadApiKey() {
-  try { return localStorage.getItem(STORAGE_KEY) || null; } catch { return null; }
-}
 function loadProvider() {
   try { return localStorage.getItem(PROVIDER_KEY) || "openai"; } catch { return "openai"; }
-}
-
-function saveApiKey(key) {
-  try {
-    if (key) localStorage.setItem(STORAGE_KEY, key);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch { /* ignore */ }
 }
 function saveProvider(p) {
   try { localStorage.setItem(PROVIDER_KEY, p); } catch { /* ignore */ }
@@ -39,15 +31,16 @@ function saveProvider(p) {
 
 export default function Dashboard() {
   // ── API key + provider state ─────────────────────────────────────────────────
-  const [apiKey, setApiKey]               = useState(loadApiKey);
+  const [apiKey, setApiKey]               = useState(null);
   const [provider, setProvider]           = useState(loadProvider);
+  const [serverAuthKey, setServerAuthKey] = useState(null);
   const [settingsOpen, setSettingsOpen]   = useState(false);
 
-  const handleSaveApiKey = useCallback((key, prov) => {
+  const handleSaveApiKey = useCallback((key, prov, authKey) => {
     setApiKey(key);
     setProvider(prov);
-    saveApiKey(key);
-    saveProvider(prov);
+    setServerAuthKey(authKey);
+    saveProvider(prov);  // Only provider is persisted (non-sensitive)
   }, []);
 
   // ── Data from API ───────────────────────────────────────────────────────────
@@ -61,6 +54,8 @@ export default function Dashboard() {
   const [selectedNode,  setSelectedNode]  = useState(null);
   const [detailStep,    setDetailStep]    = useState(null);
   const [replayToast,   setReplayToast]   = useState(null);
+  const [activeView,    setActiveView]    = useState("workflow");
+  const [agentSpecs,    setAgentSpecs]    = useState([]);
 
   // ── Load workflow + runs on mount ───────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -68,9 +63,10 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
-      const [wfData, runsData] = await Promise.all([
+      const [wfData, runsData, agentsData] = await Promise.all([
         fetchWorkflow(),
         fetchRuns(),
+        fetchAgents().catch(() => ({ agents: [] })),
       ]);
 
       const adaptedWorkflow = adaptWorkflow(wfData);
@@ -78,6 +74,7 @@ export default function Dashboard() {
 
       setWorkflow(adaptedWorkflow);
       setRuns(adaptedRuns);
+      setAgentSpecs(agentsData.agents || []);
 
       // Auto-select first run if we have runs
       if (adaptedRuns.length > 0) {
@@ -146,7 +143,7 @@ export default function Dashboard() {
   const handleReplay = useCallback(async (run) => {
     try {
       setReplayToast(`Replaying ${run.id.slice(0, 8)}…`);
-      const result = await replayRun(run.id, apiKey, provider);
+      const result = await replayRun(run.id, apiKey, provider, serverAuthKey);
       setReplayToast(`Replay created: ${result.run_id.slice(0, 8)}`);
 
       // Refresh runs list
@@ -171,7 +168,7 @@ export default function Dashboard() {
   const handleNewRun = useCallback(async () => {
     try {
       setReplayToast("Starting new run…");
-      const result = await createRun({ query: "New run from dashboard" }, apiKey, provider);
+      const result = await createRun({ query: "New run from dashboard" }, apiKey, provider, serverAuthKey);
       setReplayToast(`Run created: ${result.run_id.slice(0, 8)}`);
 
       // Refresh runs list
@@ -243,6 +240,7 @@ export default function Dashboard() {
         onClose={() => setSettingsOpen(false)}
         apiKey={apiKey}
         provider={provider}
+        serverAuthKey={serverAuthKey}
         onSave={handleSaveApiKey}
       />
 
@@ -251,37 +249,47 @@ export default function Dashboard() {
         onNewRun={handleNewRun}
         onOpenSettings={() => setSettingsOpen(true)}
         hasApiKey={!!apiKey}
+        activeView={activeView}
+        onViewChange={setActiveView}
       />
 
-      <StatsBar runs={runs} agentCount={workflow.agents.length} />
+      {/* Main content area — conditional on activeView */}
+      {activeView === "agents" ? (
+        <AgentsView />
+      ) : (
+        <>
+          <StatsBar runs={runs} agentCount={workflow.agents.length} />
 
-      {/* Main 3-column layout */}
-      <div
-        className="flex flex-1 overflow-hidden"
-        style={{ height: "calc(100vh - 108px)" }}
-      >
-        {/* Collapsible run sidebar */}
-        <RunSidebar
-          runs={runs}
-          selectedRun={selectedRun}
-          onSelect={handleSelectRun}
-          onReplay={handleReplay}
-        />
+          {/* Main 3-column layout */}
+          <div
+            className="flex flex-1 overflow-hidden"
+            style={{ height: "calc(100vh - 108px)" }}
+          >
+            {/* Collapsible run sidebar */}
+            <RunSidebar
+              runs={runs}
+              selectedRun={selectedRun}
+              onSelect={handleSelectRun}
+              onReplay={handleReplay}
+            />
 
-        {/* Graph / Diff center pane */}
-        <CenterPane
-          workflow={workflow}
-          runs={runs}
-          selectedRun={selectedRun}
-          selectedNode={selectedNode}
-          selectedStepId={detailStep?.agentId}
-          onNodeClick={handleNodeClick}
-          onStepClick={handleStepClick}
-        />
+            {/* Graph / Diff center pane */}
+            <CenterPane
+              workflow={workflow}
+              runs={runs}
+              selectedRun={selectedRun}
+              selectedNode={selectedNode}
+              selectedStepId={detailStep?.agentId}
+              onNodeClick={handleNodeClick}
+              onStepClick={handleStepClick}
+              agentSpecs={agentSpecs}
+            />
 
-        {/* Collapsible step detail right panel */}
-        <StepDetailPanel step={detailStep} onClose={handleCloseDetail} />
-      </div>
+            {/* Collapsible step detail right panel */}
+            <StepDetailPanel step={detailStep} onClose={handleCloseDetail} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

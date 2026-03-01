@@ -1,20 +1,21 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from stratum.core.agent import get_agent_by_name, list_agents
+from stratum.core.agent import get_agent_by_name, list_agents, list_agent_specs
 from stratum.core.execution_engine import ExecutionEngine
 from stratum.core.replay_engine import ReplayEngine
 from stratum.core.workflow import WorkflowGraph
-from stratum.storage.file_run_store import FileRunStore
+from stratum.api.auth import verify_api_key
 
 router = APIRouter()
 
 workflow: Optional[WorkflowGraph] = None
-run_store: Optional[FileRunStore] = None
+run_store = None  # RunStore instance (set at startup)
 
 
 def set_workflow(wf: WorkflowGraph):
@@ -22,10 +23,12 @@ def set_workflow(wf: WorkflowGraph):
     workflow = wf
 
 
-def get_run_store() -> FileRunStore:
+def get_run_store():
     global run_store
     if run_store is None:
-        run_store = FileRunStore()
+        from stratum.storage.sqlite_run_store import SQLiteRunStore
+        db_path = os.getenv("STRATUM_DB_PATH", "stratum.db")
+        run_store = SQLiteRunStore(db_path=db_path)
     return run_store
 
 
@@ -76,13 +79,40 @@ def get_workflow():
 # ─── GET /agents ────────────────────────────────────────────────────────────────
 @router.get("/agents")
 def get_agents():
+    specs = list_agent_specs()
+    if specs:
+        return {
+            "agents": [
+                {
+                    "agent_id": s.agent_id,
+                    "name": s.name,
+                    "role": s.role,
+                    "description": s.description,
+                    "permissions": sorted(s.permissions),
+                    "limits": {
+                        "max_input_tokens": s.limits.max_input_tokens,
+                        "max_output_tokens": s.limits.max_output_tokens,
+                        "max_calls_per_run": s.limits.max_calls_per_run,
+                        "rate_limit_rps": s.limits.rate_limit_rps,
+                        "max_total_tokens_per_run": s.limits.max_total_tokens_per_run,
+                    },
+                    "fallback_agent_id": s.fallback_agent_id,
+                }
+                for s in specs
+            ]
+        }
+    # Fallback: return basic agent info if no specs available
     agents = list_agents()
     return {
         "agents": [
             {
-                "id": a.id,
+                "agent_id": a.id,
                 "name": a.name,
                 "role": a.role,
+                "description": "",
+                "permissions": [],
+                "limits": {},
+                "fallback_agent_id": None,
             }
             for a in agents
         ]
@@ -91,7 +121,7 @@ def get_agents():
 
 # ─── POST /run ──────────────────────────────────────────────────────────────────
 @router.post("/run", response_model=RunResponse)
-def create_run(request: RunRequest):
+def create_run(request: RunRequest, _auth: bool = Depends(verify_api_key)):
     if not workflow:
         raise HTTPException(status_code=404, detail="No workflow configured")
 
@@ -119,6 +149,19 @@ def list_runs():
                 "start_time": r.start_time.isoformat() if r.start_time else None,
                 "end_time": r.end_time.isoformat() if r.end_time else None,
                 "error": r.error,
+                # Governance summary
+                "steps_skipped": sum(
+                    1 for s in r.steps
+                    if s.status.value.startswith("skipped")
+                    or s.status.value in ("rate_limited", "permission_denied")
+                ),
+                "steps_with_fallback": sum(
+                    1 for s in r.steps if s.fallback_used
+                ),
+                "steps_failed": sum(
+                    1 for s in r.steps
+                    if s.status.value in ("failed", "failed_retries_exceeded")
+                ),
             }
             for r in runs
         ]
@@ -158,6 +201,20 @@ def get_run(run_id: str):
                 "cost": s.cost,
                 "start_time": s.start_time.isoformat() if s.start_time else None,
                 "end_time": s.end_time.isoformat() if s.end_time else None,
+                # Governance fields
+                "retry_count": s.retry_count,
+                "fallback_used": s.fallback_used,
+                "fallback_agent_id": s.fallback_agent_id,
+                "skip_reason": s.skip_reason,
+                "attempts": [
+                    {
+                        "attempt_number": a.attempt_number,
+                        "status": a.status,
+                        "error": a.error,
+                        "duration": a.duration,
+                    }
+                    for a in s.attempts
+                ],
             }
             for s in run.steps
         ],
@@ -166,7 +223,7 @@ def get_run(run_id: str):
 
 # ─── POST /replay/{run_id} ─────────────────────────────────────────────────────
 @router.post("/replay/{run_id}", response_model=RunResponse)
-def replay_run(run_id: str, request: ReplayRequest = ReplayRequest()):
+def replay_run(run_id: str, request: ReplayRequest = ReplayRequest(), _auth: bool = Depends(verify_api_key)):
     if not workflow:
         raise HTTPException(status_code=404, detail="No workflow configured")
 

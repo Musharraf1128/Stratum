@@ -1,13 +1,13 @@
 // components/TopNav.jsx
-// Responsibility: Top navigation bar — logo, workflow selector, live status, API key, actions
+// Responsibility: Top navigation bar — logo, workflow selector, tab navigation, API key, actions
 
-export default function TopNav({ workflowName, onNewRun, onOpenSettings, hasApiKey }) {
+export default function TopNav({ workflowName, onNewRun, onOpenSettings, hasApiKey, activeView, onViewChange }) {
   return (
     <nav
       className="flex items-center justify-between px-6 border-b border-zinc-900 flex-shrink-0"
       style={{ height: 52 }}
     >
-      {/* Left: Logo + Workflow */}
+      {/* Left: Logo + Workflow + Tabs */}
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2.5">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -27,6 +27,26 @@ export default function TopNav({ workflowName, onNewRun, onOpenSettings, hasApiK
           <span className="text-xs font-mono text-zinc-300 border border-zinc-800 px-2 py-1 rounded">
             {workflowName}
           </span>
+        </div>
+
+        {/* View tabs */}
+        <div className="flex items-center gap-1 pl-4 border-l border-zinc-800">
+          {[
+            { key: "workflow", label: "Workflow" },
+            { key: "agents", label: "Agents" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => onViewChange?.(key)}
+              className={`px-3 py-1.5 text-xs font-mono rounded transition-colors ${
+                activeView === key
+                  ? "bg-orange-950/40 text-orange-400 border border-orange-800"
+                  : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 

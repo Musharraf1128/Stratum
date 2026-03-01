@@ -18,7 +18,7 @@ export function fetchWorkflow() {
     return request("/workflow");
 }
 
-/** GET /agents — returns { agents[] } */
+/** GET /agents — returns { agents[] } with full AgentSpec */
 export function fetchAgents() {
     return request("/agents");
 }
@@ -33,22 +33,40 @@ export function fetchRun(runId) {
     return request(`/runs/${runId}`);
 }
 
-/** POST /run — creates and executes a new run */
-export function createRun(inputData = {}, apiKey = null, provider = "openai") {
+/**
+ * POST /run — creates and executes a new run
+ * @param {object} inputData - Input data for the run
+ * @param {string|null} llmApiKey - LLM provider API key (sent in body for agents)
+ * @param {string} provider - LLM provider name
+ * @param {string|null} serverAuthKey - Stratum server auth key (sent as Bearer token)
+ */
+export function createRun(inputData = {}, llmApiKey = null, provider = "openai", serverAuthKey = null) {
     const body = { input_data: inputData, provider };
-    if (apiKey) body.api_key = apiKey;
+    if (llmApiKey) body.api_key = llmApiKey;
+    const headers = { "Content-Type": "application/json" };
+    if (serverAuthKey) headers["Authorization"] = `Bearer ${serverAuthKey}`;
     return request("/run", {
         method: "POST",
+        headers,
         body: JSON.stringify(body),
     });
 }
 
-/** POST /replay/:id — replays an existing run */
-export function replayRun(runId, apiKey = null, provider = "openai") {
+/**
+ * POST /replay/:id — replays an existing run
+ * @param {string} runId - Run ID to replay
+ * @param {string|null} llmApiKey - LLM provider API key
+ * @param {string} provider - LLM provider name
+ * @param {string|null} serverAuthKey - Stratum server auth key
+ */
+export function replayRun(runId, llmApiKey = null, provider = "openai", serverAuthKey = null) {
     const body = { provider };
-    if (apiKey) body.api_key = apiKey;
+    if (llmApiKey) body.api_key = llmApiKey;
+    const headers = { "Content-Type": "application/json" };
+    if (serverAuthKey) headers["Authorization"] = `Bearer ${serverAuthKey}`;
     return request(`/replay/${runId}`, {
         method: "POST",
+        headers,
         body: JSON.stringify(body),
     });
 }

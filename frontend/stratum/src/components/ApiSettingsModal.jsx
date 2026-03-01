@@ -63,31 +63,35 @@ const PROVIDERS = [
 ];
 
 
-export default function ApiSettingsModal({ isOpen, onClose, apiKey, provider, onSave }) {
+export default function ApiSettingsModal({ isOpen, onClose, apiKey, provider, serverAuthKey, onSave }) {
   const [selectedProvider, setSelectedProvider] = useState(provider || "openai");
   const [key, setKey] = useState(apiKey || "");
+  const [authKey, setAuthKey] = useState(serverAuthKey || "");
   const [showKey, setShowKey] = useState(false);
+  const [showAuthKey, setShowAuthKey] = useState(false);
 
   // Sync when modal opens with new props
   useEffect(() => {
     if (isOpen) {
       setSelectedProvider(provider || "openai");
       setKey(apiKey || "");
+      setAuthKey(serverAuthKey || "");
     }
-  }, [isOpen, provider, apiKey]);
+  }, [isOpen, provider, apiKey, serverAuthKey]);
 
   if (!isOpen) return null;
 
   const activeProvider = PROVIDERS.find((p) => p.id === selectedProvider) || PROVIDERS[0];
 
   const handleSave = () => {
-    onSave(key.trim() || null, selectedProvider);
+    onSave(key.trim() || null, selectedProvider, authKey.trim() || null);
     onClose();
   };
 
   const handleClear = () => {
     setKey("");
-    onSave(null, selectedProvider);
+    setAuthKey("");
+    onSave(null, selectedProvider, null);
     onClose();
   };
 
@@ -190,9 +194,43 @@ export default function ApiSettingsModal({ isOpen, onClose, apiKey, provider, on
 
           <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
             <div className="text-xs text-zinc-500 leading-relaxed">
-              Your key is encrypted before storage and never logged in plain text.
-              It is sent to the backend only during run execution.
+            Your key is stored in memory for this session only. It is not
+              persisted to localStorage. On page reload you will re-enter it.
             </div>
+          </div>
+        </div>
+
+        {/* Server Auth Key input */}
+        <div className="px-5 pb-4 space-y-3">
+          <label className="block text-xs font-mono text-zinc-500 uppercase tracking-widest">
+            Server Auth Key
+            <span className="text-zinc-700 normal-case ml-2">(STRATUM_API_KEY)</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showAuthKey ? "text" : "password"}
+              value={authKey}
+              onChange={(e) => setAuthKey(e.target.value)}
+              placeholder="my-stratum-secret"
+              className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2.5 text-sm font-mono text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-orange-600 transition-colors"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <button
+              onClick={() => setShowAuthKey(!showAuthKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-600 hover:text-zinc-400 transition-colors px-1.5 py-0.5"
+            >
+              {showAuthKey ? "hide" : "show"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${authKey.trim() ? "bg-emerald-400" : "bg-zinc-700"}`} />
+            <span className="text-xs font-mono text-zinc-600">
+              {authKey.trim()
+                ? "Server auth configured — sent as Bearer token on run/replay"
+                : "No auth key — only works if server has no STRATUM_API_KEY set"
+              }
+            </span>
           </div>
         </div>
 

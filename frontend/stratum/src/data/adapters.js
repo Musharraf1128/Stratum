@@ -122,6 +122,17 @@ function adaptStep(apiStep) {
             ? apiStep.output_data
             : JSON.stringify(apiStep.output_data, null, 2),
         error: apiStep.error || null,
+        // Governance fields
+        retryCount: apiStep.retry_count || 0,
+        fallbackUsed: apiStep.fallback_used || false,
+        fallbackAgentId: apiStep.fallback_agent_id || null,
+        skipReason: apiStep.skip_reason || null,
+        attempts: (apiStep.attempts || []).map((a) => ({
+            number: a.attempt_number,
+            status: a.status,
+            error: a.error,
+            duration: a.duration != null ? `${a.duration.toFixed(1)}s` : "—",
+        })),
     };
 }
 
@@ -138,6 +149,10 @@ export function adaptRuns(apiRunsList) {
         tokens: r.total_tokens || 0,
         cost: formatCost(r.total_cost),
         steps: [],
+        // Governance summary
+        stepsSkipped: r.steps_skipped || 0,
+        stepsWithFallback: r.steps_with_fallback || 0,
+        stepsFailed: r.steps_failed || 0,
     }));
 }
 

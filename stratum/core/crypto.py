@@ -2,8 +2,11 @@
 Crypto utility for encrypting/decrypting API keys at rest.
 Uses Fernet symmetric encryption from the `cryptography` library.
 
-The server key is auto-generated on first run and stored in `.stratum_key`.
-This file should be gitignored and never committed.
+Key source priority:
+  1. STRATUM_SECRET_KEY environment variable
+  2. .stratum_key file (auto-generated in dev mode)
+
+The .stratum_key file should be gitignored and never committed.
 """
 
 from __future__ import annotations
@@ -23,9 +26,15 @@ def _get_fernet() -> Fernet:
     if _fernet is not None:
         return _fernet
 
-    if _KEY_FILE.exists():
+    # Priority 1: environment variable
+    env_key = os.getenv("STRATUM_SECRET_KEY")
+    if env_key:
+        key = env_key.encode("utf-8")
+    elif _KEY_FILE.exists():
+        # Priority 2: key file (dev mode fallback)
         key = _KEY_FILE.read_bytes().strip()
     else:
+        # Auto-generate key file for dev mode
         key = Fernet.generate_key()
         _KEY_FILE.write_bytes(key)
         # Restrict permissions (owner-only)

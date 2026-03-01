@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,6 +15,12 @@ async def lifespan(app: FastAPI):
 
     wf = build_workflow()
     set_workflow(wf)
+
+    # Load config and merge overrides into agent registry
+    from stratum.core.config_loader import load_config, apply_config_to_registry
+    config = load_config()
+    apply_config_to_registry(config)
+
     yield
 
 
@@ -25,10 +32,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    cors_origin = os.getenv("STRATUM_CORS_ORIGIN", "http://localhost:5173")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=[cors_origin],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

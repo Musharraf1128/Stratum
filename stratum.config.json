@@ -1,0 +1,69 @@
+{
+    "agents": {
+        "fetch_data": {
+            "limits": {
+                "max_input_tokens": 2000,
+                "max_output_tokens": 1000,
+                "max_calls_per_run": 3
+            },
+            "permissions": [
+                "call:llm",
+                "read:kb"
+            ]
+        },
+        "process_a": {
+            "limits": {
+                "max_input_tokens": 4000,
+                "max_output_tokens": 2000,
+                "max_calls_per_run": 10
+            },
+            "permissions": [
+                "call:llm"
+            ],
+            "fallback": "simple_processor"
+        },
+        "process_b": {
+            "limits": {
+                "max_input_tokens": 4000,
+                "max_output_tokens": 2000,
+                "max_calls_per_run": 10
+            },
+            "permissions": [
+                "call:llm"
+            ]
+        },
+        "aggregate": {
+            "limits": {
+                "max_input_tokens": 6000,
+                "max_output_tokens": 1000,
+                "max_calls_per_run": 5
+            },
+            "permissions": [
+                "call:llm"
+            ]
+        },
+        "format_output": {
+            "limits": {
+                "max_input_tokens": 2000,
+                "max_output_tokens": 500,
+                "max_calls_per_run": 3
+            },
+            "permissions": [
+                "call:llm"
+            ]
+        },
+        "simple_processor": {
+            "limits": {
+                "max_input_tokens": 2000,
+                "max_output_tokens": 1000,
+                "max_calls_per_run": 5
+            },
+            "permissions": []
+        }
+    },
+    "workflows": {
+        "demo_workflow": {
+            "max_total_tokens": 20000
+        }
+    }
+}

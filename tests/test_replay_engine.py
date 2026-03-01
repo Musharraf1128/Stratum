@@ -27,7 +27,7 @@ def test_replay_creates_new_run(temp_store):
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "result"
 
     engine = ExecutionEngine(wf)
@@ -50,7 +50,7 @@ def test_replay_nonexistent_run(temp_store):
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "result"
 
     replay_engine = ReplayEngine(wf, temp_store)
@@ -64,7 +64,7 @@ def test_replay_preserves_input(temp_store):
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return f"got: {data.get('input', 'nothing')}"
 
     engine = ExecutionEngine(wf)
