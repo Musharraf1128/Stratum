@@ -23,6 +23,33 @@ uvicorn stratum.api.server:app --reload
 # Run frontend (in another terminal)
 cd frontend/stratum && npm install && npm run dev
 ```
+                    ┌───────────────────────────────────────┐
+                    │           React Dashboard             │
+                    │  Graph View · Run List · Step Detail  │
+                    │           · Diff View                 │
+                    └──────────────────┬────────────────────┘
+                                       │ HTTP
+                    ┌──────────────────▼────────────────────┐
+                    │            FastAPI Server             │
+                    │   /workflow · /run · /runs · /replay  │
+                    └──────────────────┬────────────────────┘
+                                       │
+          ┌────────────────────────────┼────────────────────────┐
+          │                            │                        │
+  ┌───────▼────────────┐    ┌──────────▼────────────┐   ┌───────▼────────┐
+  │  Agent Registry    │    │  Execution Engine     │   │    Run Store   │
+  │  @agent decorator  │    │  Sequential/Parallel  │   │   JSON files   │
+  └────────────────────┘    │  Dependency resolver  │   └────────────────┘
+                            └──────────┬────────────┘
+                                       │
+                    ┌──────────────────▼──────────────────┐
+                    │         WorkflowGraph (DAG)         │
+                    │       NetworkX · Topological Sort   │
+                    │       Cycle detection · Validation  │
+                    └─────────────────────────────────────┘
+```
+
+---
 
 Open **http://localhost:5173** to see the dashboard.
 
@@ -152,3 +179,9 @@ python -m pytest tests/ -v
 ## License
 
 MIT
+
+---
+
+## Contributing
+
+This project is in early development. If you're interested in contributing or have feedback, open an issue or reach out.
