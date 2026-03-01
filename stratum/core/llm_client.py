@@ -36,13 +36,14 @@ PRICING: dict[str, dict[str, float]] = {
     "gemini-1.5-flash":  {"prompt": 0.000075, "completion": 0.000300},
     "gemini-1.5-pro":    {"prompt": 0.00125,  "completion": 0.00500},
     "gemini-2.0-flash":  {"prompt": 0.000075, "completion": 0.000300},
+    "gemini-2.5-flash":  {"prompt": 0.000150, "completion": 0.000600},
 }
 
 # Default models per provider
 DEFAULT_MODELS: dict[str, str] = {
     "openai":  "gpt-4o-mini",
     "claude":  "claude-3-5-sonnet-latest",
-    "gemini":  "gemini-2.0-flash",
+    "gemini":  "gemini-2.5-flash",
 }
 
 TIMEOUT_SECONDS = 60
