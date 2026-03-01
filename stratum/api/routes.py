@@ -33,11 +33,13 @@ class RunRequest(BaseModel):
     input_data: dict[str, Any] = {}
     api_key: Optional[str] = None
     provider: str = "openai"
+    model: Optional[str] = None
 
 
 class ReplayRequest(BaseModel):
     api_key: Optional[str] = None
     provider: str = "openai"
+    model: Optional[str] = None
 
 
 class RunResponse(BaseModel):
@@ -93,7 +95,7 @@ def create_run(request: RunRequest):
     if not workflow:
         raise HTTPException(status_code=404, detail="No workflow configured")
 
-    engine = ExecutionEngine(workflow, api_key=request.api_key, provider=request.provider)
+    engine = ExecutionEngine(workflow, api_key=request.api_key, provider=request.provider, model=request.model)
     run = engine.execute(request.input_data)
     get_run_store().save_run(run)
 
@@ -173,7 +175,7 @@ def replay_run(run_id: str, request: ReplayRequest = ReplayRequest()):
     if not original_run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    replay_engine = ReplayEngine(workflow, store, api_key=request.api_key, provider=request.provider)
+    replay_engine = ReplayEngine(workflow, store, api_key=request.api_key, provider=request.provider, model=request.model)
     new_run_id = replay_engine.replay(run_id, api_key=request.api_key)
     new_run = store.get_run(new_run_id)
 

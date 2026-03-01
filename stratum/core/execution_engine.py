@@ -15,11 +15,13 @@ class ExecutionEngine:
         max_workers: int = 4,
         api_key: Optional[str] = None,
         provider: str = "openai",
+        model: Optional[str] = None,
     ):
         self.workflow = workflow
         self.max_workers = max_workers
         self.api_key = api_key
         self.provider = provider
+        self.model = model
 
     def execute(self, initial_input: Optional[dict[str, Any]] = None) -> ExecutionRun:
         run = ExecutionRun(
@@ -188,7 +190,7 @@ class ExecutionEngine:
                 raise ValueError(f"Agent '{step.agent_name}' not found in registry")
 
             # Pass api_key to the agent callable so it can use real LLM calls
-            result = agent.execute(step.input_data, api_key=self.api_key, provider=self.provider)
+            result = agent.execute(step.input_data, api_key=self.api_key, provider=self.provider, model=self.model)
 
             # If the result is an LLMResponse, extract metrics
             from stratum.core.llm_client import LLMResponse
