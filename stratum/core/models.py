@@ -33,6 +33,7 @@ class ExecutionStep:
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     token_usage: int = 0
+    cost: float = 0.0
 
     @property
     def duration(self) -> Optional[float]:
@@ -52,6 +53,7 @@ class ExecutionRun:
     error: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    encrypted_api_key: Optional[str] = None
 
     @property
     def duration(self) -> Optional[float]:
@@ -62,3 +64,7 @@ class ExecutionRun:
     @property
     def total_tokens(self) -> int:
         return sum(step.token_usage for step in self.steps)
+
+    @property
+    def total_cost(self) -> float:
+        return sum(step.cost for step in self.steps)

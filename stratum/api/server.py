@@ -8,9 +8,11 @@ from stratum.api.routes import router, set_workflow
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from stratum.core.workflow import WorkflowGraph
+    # Import and execute demo_workflow to register agents + build the graph
+    from stratum.core.agent import clear_registry
+    from demo_workflow import build_workflow  # registers agents via @agent decorators
 
-    wf = WorkflowGraph("demo")
+    wf = build_workflow()
     set_workflow(wf)
     yield
 

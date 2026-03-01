@@ -14,3 +14,7 @@ wheels/
 
 # Runs (execution logs)
 runs/
+
+# Security
+.stratum_key
+.env
