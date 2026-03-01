@@ -1,0 +1,20 @@
+{
+    "_comment": "Demo staging configuration — see README for usage",
+    "moment_1_budget_enforcement": {
+        "description": "fetch_data(4200) + process_a(14300) = 18,500 tokens. Budget is 20,000. process_b needs 8,500 → would push to 27,000 → SKIPPED.",
+        "setup": "Use default stratum.config.json (max_total_tokens: 20000)",
+        "command": "uvicorn stratum.api.server:app --reload",
+        "expected": "process_b shows orange 'Budget Exceeded' badge, rest complete normally"
+    },
+    "moment_2_retry_and_fallback": {
+        "description": "process_a is forced to fail. It retries 2x, then falls back to simple_processor.",
+        "setup": "Set STRATUM_DEMO_FAIL_AGENT=process_a",
+        "command": "STRATUM_DEMO_FAIL_AGENT=process_a uvicorn stratum.api.server:app --reload",
+        "expected": "process_a shows amber 'Fallback' badge, 3 attempts (2 retries) in detail panel"
+    },
+    "moment_3_agents_tab": {
+        "description": "Click the Agents tab in TopNav to see all registered agents with specs.",
+        "setup": "No setup needed",
+        "expected": "Table with 6 agents showing permissions, token limits, call limits, fallback config"
+    }
+}

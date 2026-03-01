@@ -1,19 +1,21 @@
 """
-Demo Workflow - Stratum v0.1.0
+Demo Workflow - Stratum v0.2
 
-This script demonstrates the full Stratum functionality:
-- Creating agents with @agent decorator
-- Building a workflow graph with parallel branches
-- Running execution
-- Saving/retrieving runs
-- Replaying runs
+This script defines the 5 demo agents and the fork/join workflow graph.
+Agents make real LLM calls when an api_key is provided, otherwise they
+use mock responses with realistic token counts — enabling governance
+demos (budget enforcement, retry/fallback) without needing a real key.
 
-When an api_key is provided, agents make real LLM calls.
-When no key is provided, agents use mock/hardcoded logic.
+Demo staging:
+  - Default run:          All steps complete with mock token counts
+  - Budget demo:          fetch_data(4200) + process_a(14300) = 18500 > 20k on process_b
+  - Retry+Fallback demo:  STRATUM_DEMO_FAIL_AGENT=process_a forces that agent to fail
 """
 
-from stratum.core.agent import agent, clear_registry, list_agents, get_agent_by_name
+import os
+from stratum.core.agent import agent, list_agents
 from stratum.core.execution_engine import ExecutionEngine
+from stratum.core.models import AgentLimits
 from stratum.core.replay_engine import ReplayEngine
 from stratum.core.workflow import WorkflowGraph
 from stratum.storage.file_run_store import FileRunStore
@@ -27,9 +29,52 @@ def _try_llm(api_key, prompt, system_prompt=None, provider="openai", model=None)
     return call_llm(api_key, prompt, provider=provider, model=model, system_prompt=system_prompt)
 
 
-@agent(name="fetch_data", role="data_fetcher")
+def _should_fail(agent_name: str) -> bool:
+    """Check if this agent should simulate failure (for demo staging)."""
+    fail_agent = os.getenv("STRATUM_DEMO_FAIL_AGENT", "")
+    return fail_agent.lower() == agent_name.lower()
+
+
+# ─── simple_processor (fallback agent) ──────────────────────────────────────
+
+@agent(
+    name="simple_processor",
+    role="fallback_processor",
+    description="Lightweight fallback processor — no LLM, deterministic output",
+    permissions=set(),
+    limits=AgentLimits(max_input_tokens=2000, max_output_tokens=1000, max_calls_per_run=5),
+    max_retries=0,
+)
+def simple_processor(data: dict, **kwargs) -> dict:
+    """Deterministic fallback: runs without LLM, always succeeds."""
+    results = data.get("fetch_data", {}).get("results", [])
+    if isinstance(results, list):
+        processed = [f"simple_{item}" for item in results]
+    else:
+        processed = [f"simple_processed: {str(results)[:100]}"]
+    return {
+        "processed": processed,
+        "path": "A-fallback",
+        "_llm_response": {"total_tokens": 50, "cost": 0.0},
+    }
+
+
+# ─── fetch_data ─────────────────────────────────────────────────────────────
+
+@agent(
+    name="fetch_data",
+    role="data_fetcher",
+    description="Fetches and normalizes input data from queries",
+    permissions={"call:llm", "read:kb"},
+    limits=AgentLimits(max_input_tokens=2000, max_output_tokens=1000, max_calls_per_run=3),
+    max_retries=2,
+    retry_backoff_seconds=1.0,
+)
 def fetch_data(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Fetch and analyze input data."""
+    if _should_fail("fetch_data"):
+        raise ConnectionError("Simulated fetch_data failure for demo")
+
     query = data.get("query", "default query")
 
     llm_resp = _try_llm(
@@ -51,17 +96,32 @@ def fetch_data(data: dict, api_key: str = None, provider: str = "openai", model:
             },
         }
 
-    # Fallback: mock logic
+    # Mock response with realistic token count
     return {
-        "results": ["item1", "item2", "item3"],
+        "results": ["market_trends_2024", "competitor_analysis", "user_sentiment_data"],
         "query": query,
         "source": "mock",
+        "_llm_response": {"total_tokens": 4200, "cost": 0.000630},
     }
 
 
-@agent(name="process_a", role="processor")
+# ─── process_a ──────────────────────────────────────────────────────────────
+
+@agent(
+    name="process_a",
+    role="processor",
+    description="Processes data through analytical path A",
+    permissions={"call:llm"},
+    limits=AgentLimits(max_input_tokens=4000, max_output_tokens=2000, max_calls_per_run=10),
+    fallback_agent_id="simple_processor",
+    max_retries=2,
+    retry_backoff_seconds=1.5,
+)
 def process_a(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Process data through analytical path A."""
+    if _should_fail("process_a"):
+        raise ConnectionError("Simulated process_a failure — connection timeout")
+
     results = data.get("fetch_data", {}).get("results", [])
 
     llm_resp = _try_llm(
@@ -82,17 +142,33 @@ def process_a(data: dict, api_key: str = None, provider: str = "openai", model: 
             },
         }
 
-    # Fallback
-    if isinstance(results, list):
-        processed = [f"processed_{item}_A" for item in results]
-    else:
-        processed = [f"processed_A: {results}"]
-    return {"processed": processed, "path": "A"}
+    # Mock response — high token count to trigger budget demo
+    return {
+        "processed": [
+            "Trend analysis: market shifting toward AI-first solutions",
+            "Competitor gap: 3 of 5 competitors lack governance features",
+            "Sentiment: 78% positive on structured agent frameworks",
+        ],
+        "path": "A",
+        "_llm_response": {"total_tokens": 14300, "cost": 0.002145},
+    }
 
 
-@agent(name="process_b", role="processor")
+# ─── process_b ──────────────────────────────────────────────────────────────
+
+@agent(
+    name="process_b",
+    role="processor",
+    description="Processes data through synthesis path B",
+    permissions={"call:llm"},
+    limits=AgentLimits(max_input_tokens=4000, max_output_tokens=2000, max_calls_per_run=10),
+    max_retries=1,
+)
 def process_b(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Process data through synthesis path B."""
+    if _should_fail("process_b"):
+        raise ConnectionError("Simulated process_b failure for demo")
+
     results = data.get("fetch_data", {}).get("results", [])
 
     llm_resp = _try_llm(
@@ -113,23 +189,39 @@ def process_b(data: dict, api_key: str = None, provider: str = "openai", model: 
             },
         }
 
-    # Fallback
-    if isinstance(results, list):
-        processed = [f"processed_{item}_B" for item in results]
-    else:
-        processed = [f"processed_B: {results}"]
-    return {"processed": processed, "path": "B"}
+    # Mock response
+    return {
+        "processed": [
+            "Narrative: the convergence of AI governance and developer tooling",
+            "Key finding: teams need visibility into agent behavior at runtime",
+        ],
+        "path": "B",
+        "_llm_response": {"total_tokens": 8500, "cost": 0.001275},
+    }
 
 
-@agent(name="aggregate", role="aggregator")
+# ─── aggregate ──────────────────────────────────────────────────────────────
+
+@agent(
+    name="aggregate",
+    role="aggregator",
+    description="Aggregates results from multiple processing paths",
+    permissions={"call:llm"},
+    limits=AgentLimits(max_input_tokens=6000, max_output_tokens=1000, max_calls_per_run=5),
+    max_retries=1,
+)
 def aggregate(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Aggregate results from both processing paths."""
-    path_a = data.get("process_a", {}).get("processed", [])
-    path_b = data.get("process_b", {}).get("processed", [])
+    path_a = data.get("process_a", {})
+    path_b = data.get("process_b", {})
+
+    # Gracefully handle skipped/missing paths
+    processed_a = path_a.get("processed", []) if isinstance(path_a, dict) else []
+    processed_b = path_b.get("processed", []) if isinstance(path_b, dict) else []
 
     llm_resp = _try_llm(
         api_key,
-        f"You are an aggregation agent. Combine these two analyses into a unified summary:\n\nAnalysis A:\n{path_a}\n\nSynthesis B:\n{path_b}",
+        f"You are an aggregation agent. Combine these two analyses into a unified summary:\n\nAnalysis A:\n{processed_a}\n\nSynthesis B:\n{processed_b}",
         system_prompt="You are a results aggregator. Produce a clear, unified summary.",
         provider=provider,
         model=model,
@@ -138,31 +230,50 @@ def aggregate(data: dict, api_key: str = None, provider: str = "openai", model: 
     if llm_resp:
         return {
             "combined": llm_resp.output,
-            "total": 2,
+            "paths_used": sum(1 for p in [processed_a, processed_b] if p),
             "_llm_response": {
                 "total_tokens": llm_resp.total_tokens,
                 "cost": llm_resp.cost,
             },
         }
 
-    # Fallback
+    # Mock response
     combined = []
-    if isinstance(path_a, list):
-        combined.extend(path_a)
-    else:
-        combined.append(str(path_a))
-    if isinstance(path_b, list):
-        combined.extend(path_b)
-    else:
-        combined.append(str(path_b))
-    return {"combined": combined, "total": len(combined)}
+    if isinstance(processed_a, list):
+        combined.extend(processed_a)
+    elif processed_a:
+        combined.append(str(processed_a))
+    if isinstance(processed_b, list):
+        combined.extend(processed_b)
+    elif processed_b:
+        combined.append(str(processed_b))
+
+    paths_used = sum(1 for p in [processed_a, processed_b] if p)
+    note = "" if paths_used == 2 else " (partial — one path was skipped by governance)"
+
+    return {
+        "combined": combined,
+        "paths_used": paths_used,
+        "note": f"Aggregated from {paths_used} of 2 paths{note}",
+        "_llm_response": {"total_tokens": 1000, "cost": 0.000150},
+    }
 
 
-@agent(name="format_output", role="formatter")
-def format_output(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> str:
+# ─── format_output ──────────────────────────────────────────────────────────
+
+@agent(
+    name="format_output",
+    role="formatter",
+    description="Formats final output into polished executive summary",
+    permissions={"call:llm"},
+    limits=AgentLimits(max_input_tokens=2000, max_output_tokens=500, max_calls_per_run=3),
+    max_retries=1,
+)
+def format_output(data: dict, api_key: str = None, provider: str = "openai", model: str = None) -> dict:
     """Format final output into a polished result."""
-    combined = data.get("aggregate", {}).get("combined", [])
-    total = data.get("aggregate", {}).get("total", 0)
+    agg = data.get("aggregate", {})
+    combined = agg.get("combined", []) if isinstance(agg, dict) else []
+    paths_used = agg.get("paths_used", 0) if isinstance(agg, dict) else 0
 
     llm_resp = _try_llm(
         api_key,
@@ -173,19 +284,32 @@ def format_output(data: dict, api_key: str = None, provider: str = "openai", mod
     )
 
     if llm_resp:
-        # Return the LLM response directly — the engine will extract metrics
-        return llm_resp
+        return {
+            "summary": llm_resp.output,
+            "paths_used": paths_used,
+            "_llm_response": {
+                "total_tokens": llm_resp.total_tokens,
+                "cost": llm_resp.cost,
+            },
+        }
 
-    # Fallback
+    # Mock response
     if isinstance(combined, list):
-        result = f"Final Output ({total} items): {', '.join(str(c) for c in combined)}"
+        items = "\n".join(f"  • {c}" for c in combined)
     else:
-        result = f"Final Output: {combined}"
-    return result
+        items = f"  {combined}"
 
+    return {
+        "summary": f"Executive Summary ({paths_used} sources):\n{items}",
+        "paths_used": paths_used,
+        "_llm_response": {"total_tokens": 2100, "cost": 0.000315},
+    }
+
+
+# ─── Workflow graph ─────────────────────────────────────────────────────────
 
 def build_workflow() -> WorkflowGraph:
-    """Build the demo workflow graph."""
+    """Build the demo workflow graph. Never change the structure."""
     wf = WorkflowGraph("demo_workflow")
 
     wf.add_agent("fetch_data")
@@ -205,7 +329,7 @@ def build_workflow() -> WorkflowGraph:
 
 def main():
     print("=" * 60)
-    print("STRATUM v0.1.0 - Demo Workflow")
+    print("STRATUM v0.2 - Demo Workflow")
     print("=" * 60)
 
     print("\n1. Registered agents:")
@@ -221,9 +345,13 @@ def main():
     print(f"   Edges: {workflow.get_edges()}")
     print(f"   Execution order: {workflow.get_execution_order()}")
 
+    fail_agent = os.getenv("STRATUM_DEMO_FAIL_AGENT", "")
+    if fail_agent:
+        print(f"\n   ⚠ DEMO MODE: '{fail_agent}' will simulate failure")
+
     print("\n3. Running workflow execution (mock mode)...")
     engine = ExecutionEngine(workflow)
-    run = engine.execute({"query": "SELECT * FROM users"})
+    run = engine.execute({"query": "Analyze AI governance market trends for 2024"})
 
     print(f"   Run ID: {run.run_id}")
     print(f"   Status: {run.status.value}")
@@ -232,26 +360,28 @@ def main():
     print(f"   Total tokens: {run.total_tokens}")
     print(f"   Total cost: ${run.total_cost:.6f}")
 
+    print("\n   Step details:")
+    for step in run.steps:
+        badge = step.status.value
+        extra = ""
+        if step.retry_count > 0:
+            extra += f" | retries={step.retry_count}"
+        if step.fallback_used:
+            extra += f" | fallback={step.fallback_agent_id}"
+        if step.skip_reason:
+            extra += f" | reason={step.skip_reason}"
+        print(f"   {'✓' if 'completed' in badge else '⊘' if 'skipped' in badge else '✗'} {step.agent_name:20s} — {badge:30s} — {step.token_usage:,} tok{extra}")
+
     print("\n4. Saving run to storage...")
     store = FileRunStore()
     store.save_run(run)
     print(f"   Saved: runs/run_{run.run_id}.json")
 
-    print("\n5. Retrieving run from storage...")
-    retrieved = store.get_run(run.run_id)
-    print(f"   Retrieved: {retrieved.run_id}")
-    print(f"   Status: {retrieved.status.value}")
-
-    print("\n6. Listing all runs...")
-    all_runs = store.list_runs()
-    print(f"   Total: {len(all_runs)} runs")
-
-    print("\n7. Replaying run...")
+    print("\n5. Replaying run...")
     replay_engine = ReplayEngine(workflow, store)
     new_run_id = replay_engine.replay(run.run_id)
-    print(f"   New run ID: {new_run_id}")
-
     new_run = store.get_run(new_run_id)
+    print(f"   New run ID: {new_run_id}")
     print(f"   Status: {new_run.status.value}")
 
     print("\n" + "=" * 60)

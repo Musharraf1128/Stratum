@@ -17,7 +17,7 @@ def test_execution_run_creation():
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "done"
 
     engine = ExecutionEngine(wf)
@@ -34,15 +34,15 @@ def test_execution_order():
     wf.connect("a", "b").connect("b", "c")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "a_done"
 
     @agent(name="b", role="test")
-    def func_b(data: dict) -> str:
+    def func_b(data: dict, **kwargs) -> str:
         return f"b_got_{data.get('a', 'nothing')}"
 
     @agent(name="c", role="test")
-    def func_c(data: dict) -> str:
+    def func_c(data: dict, **kwargs) -> str:
         return f"c_got_{data.get('b', 'nothing')}"
 
     engine = ExecutionEngine(wf)
@@ -60,15 +60,15 @@ def test_parallel_execution():
     wf.connect("a", "b").connect("a", "c")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "a_done"
 
     @agent(name="b", role="test")
-    def func_b(data: dict) -> str:
+    def func_b(data: dict, **kwargs) -> str:
         return f"b_got_{data.get('a')}"
 
     @agent(name="c", role="test")
-    def func_c(data: dict) -> str:
+    def func_c(data: dict, **kwargs) -> str:
         return f"c_got_{data.get('a')}"
 
     engine = ExecutionEngine(wf)
@@ -83,7 +83,7 @@ def test_step_duration_recorded():
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "done"
 
     engine = ExecutionEngine(wf)
@@ -99,7 +99,7 @@ def test_run_failure():
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         raise ValueError("Something went wrong")
 
     engine = ExecutionEngine(wf)
@@ -114,7 +114,7 @@ def test_total_tokens():
     wf.add_agent("a")
 
     @agent(name="a", role="test")
-    def func_a(data: dict) -> str:
+    def func_a(data: dict, **kwargs) -> str:
         return "done"
 
     engine = ExecutionEngine(wf)

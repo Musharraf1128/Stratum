@@ -29,6 +29,21 @@ function RunRow({ run, isSelected, onSelect, onReplay }) {
           <span className="text-xs text-zinc-300 font-mono flex-shrink-0">{run.duration}</span>
           <span className="text-xs text-zinc-600 flex-shrink-0">{run.cost}</span>
         </div>
+        {/* Governance summary chips */}
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          {run.tokens > 0 && (
+            <span className="text-xs font-mono text-zinc-600 border border-zinc-800 px-1 rounded">{run.tokens.toLocaleString()} tok</span>
+          )}
+          {run.stepsSkipped > 0 && (
+            <span className="text-xs font-mono text-orange-500 border border-orange-900/50 px-1 rounded">{run.stepsSkipped} skip</span>
+          )}
+          {run.stepsWithFallback > 0 && (
+            <span className="text-xs font-mono text-amber-500 border border-amber-900/50 px-1 rounded">{run.stepsWithFallback} fb</span>
+          )}
+          {run.stepsFailed > 0 && (
+            <span className="text-xs font-mono text-red-500 border border-red-900/50 px-1 rounded">{run.stepsFailed} fail</span>
+          )}
+        </div>
         <div className="text-xs text-zinc-500 mt-0.5 truncate">{run.start}</div>
       </div>
 

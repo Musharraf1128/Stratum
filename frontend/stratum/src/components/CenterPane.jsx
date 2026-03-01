@@ -21,6 +21,7 @@ export default function CenterPane({
   selectedStepId,
   onNodeClick,
   onStepClick,
+  agentSpecs,
 }) {
   const [activeTab, setActiveTab] = useState("graph");
 
@@ -66,6 +67,7 @@ export default function CenterPane({
               selectedNode={selectedNode}
               onNodeClick={onNodeClick}
               activeRunSteps={selectedRun?.steps}
+              agentSpecs={agentSpecs}
             />
           </div>
 
