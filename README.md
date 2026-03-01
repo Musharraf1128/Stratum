@@ -36,29 +36,29 @@ Stratum solves this by treating multi-agent workflows as **directed graphs** wit
 ## Architecture
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │          React Dashboard             │
+                    ┌───────────────────────────────────────┐
+                    │           React Dashboard             │
                     │  Graph View · Run List · Step Detail  │
-                    │           · Diff View                │
-                    └──────────────┬──────────────────────┘
-                                   │ HTTP
-                    ┌──────────────▼──────────────────────┐
-                    │          FastAPI Server               │
+                    │           · Diff View                 │
+                    └──────────────────┬────────────────────┘
+                                       │ HTTP
+                    ┌──────────────────▼────────────────────┐
+                    │            FastAPI Server             │
                     │   /workflow · /run · /runs · /replay  │
-                    └──────────────┬──────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          │                        │                        │
-  ┌───────▼────────┐   ┌──────────▼──────────┐   ┌────────▼────────┐
-  │  Agent Registry │   │  Execution Engine   │   │    Run Store    │
-  │  @agent decorator│   │  Sequential/Parallel│   │   JSON files    │
-  └────────────────┘   │  Dependency resolver │   └─────────────────┘
-                        └──────────┬──────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │         WorkflowGraph (DAG)          │
-                    │       NetworkX · Topological Sort     │
-                    │       Cycle detection · Validation    │
+                    └──────────────────┬────────────────────┘
+                                       │
+          ┌────────────────────────────┼────────────────────────┐
+          │                            │                        │
+  ┌───────▼────────────┐    ┌──────────▼────────────┐   ┌───────▼────────┐
+  │  Agent Registry    │    │  Execution Engine     │   │    Run Store   │
+  │  @agent decorator  │    │  Sequential/Parallel  │   │   JSON files   │
+  └────────────────────┘    │  Dependency resolver  │   └────────────────┘
+                            └──────────┬────────────┘
+                                       │
+                    ┌──────────────────▼──────────────────┐
+                    │         WorkflowGraph (DAG)         │
+                    │       NetworkX · Topological Sort   │
+                    │       Cycle detection · Validation  │
                     └─────────────────────────────────────┘
 ```
 
