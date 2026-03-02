@@ -4,13 +4,16 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
 
 # Virtual environments
-.venv
+.venv/
 
 # Testing
 .pytest_cache/
+
+# Linting
+.ruff_cache/
 
 # Runs (execution logs)
 runs/
@@ -19,5 +22,11 @@ runs/
 .stratum_key
 .env
 
-# Database
+# Database (SQLite + journal files)
 stratum.db
+stratum.db-shm
+stratum.db-wal
+stratum.db-journal
+
+# Internal docs (not for public repo)
+conversation.txt

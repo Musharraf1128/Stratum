@@ -8,20 +8,61 @@ Stratum gives you a DAG execution engine, parallel workflow orchestration, gover
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (for the dashboard)
+
+### Option A: Using uv (recommended)
+
 ```bash
-# Clone and install
-git clone <repo-url> && cd Stratum
-python3 -m venv .venv && source .venv/bin/activate
-pip install fastapi uvicorn networkx pydantic cryptography python-dotenv
+# Clone the repo
+git clone https://github.com/Musharraf1128/stratum.git && cd stratum
+
+# Install dependencies with uv
+uv sync
 
 # Set up environment (optional — dev mode works without these)
 cp .env.example .env
 
-# Run backend
+# Run the backend
+uv run uvicorn stratum.api.server:app --reload
+
+# In another terminal — run the frontend
+cd frontend/stratum && npm install && npm run dev
+```
+
+### Option B: Using pip
+
+```bash
+# Clone the repo
+git clone https://github.com/Musharraf1128/stratum.git && cd stratum
+
+# Create and activate a virtual environment
+python3 -m venv .venv && source .venv/bin/activate
+
+# Install the package (all dependencies are in pyproject.toml)
+pip install -e .
+
+# For development (includes pytest, ruff)
+pip install -e ".[dev]" 2>/dev/null || pip install -e . && pip install pytest ruff
+
+# Set up environment (optional — dev mode works without these)
+cp .env.example .env
+
+# Run the backend
 uvicorn stratum.api.server:app --reload
 
-# Run frontend (in another terminal)
+# In another terminal — run the frontend
 cd frontend/stratum && npm install && npm run dev
+```
+
+Open **http://localhost:5173** to see the dashboard.
+
+---
+
+## Architecture
+
 ```
                     ┌───────────────────────────────────────┐
                     │           React Dashboard             │
@@ -38,7 +79,7 @@ cd frontend/stratum && npm install && npm run dev
           │                            │                        │
   ┌───────▼────────────┐    ┌──────────▼────────────┐   ┌───────▼────────┐
   │  Agent Registry    │    │  Execution Engine     │   │    Run Store   │
-  │  @agent decorator  │    │  Sequential/Parallel  │   │   JSON files   │
+  │  @agent decorator  │    │  Sequential/Parallel  │   │   SQLite DB    │
   └────────────────────┘    │  Dependency resolver  │   └────────────────┘
                             └──────────┬────────────┘
                                        │
@@ -48,10 +89,6 @@ cd frontend/stratum && npm install && npm run dev
                     │       Cycle detection · Validation  │
                     └─────────────────────────────────────┘
 ```
-
----
-
-Open **http://localhost:5173** to see the dashboard.
 
 ---
 
@@ -169,6 +206,10 @@ Operator-level overrides for agent limits and permissions:
 ## Tests
 
 ```bash
+# With uv
+uv run pytest tests/ -v
+
+# With pip (venv activated)
 python -m pytest tests/ -v
 ```
 
